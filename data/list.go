@@ -1,0 +1,17 @@
+package data
+
+type List struct {
+	Name  string `json:"name"`
+	Items []Item `json:"items"`
+}
+
+type Item struct {
+	ID           string         `json:"id"`
+	Position     int            `json:"position"` // 0 if empty
+	Title        string         `json:"title"`
+	By           []string       `json:"by"`
+	AvgRating    float64        `json:"rating_avg"`
+	TotalRatings int64          `json:"total_ratings"`
+	Images       []string       `json:"images"`
+	Metadata     map[string]any `json:"metadata"`
+}
