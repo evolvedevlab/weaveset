@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -41,6 +42,7 @@ func NewRedisQueue(hostname, stream, group string, client *redis.Client) Queuer 
 }
 
 func (q *RedisQueue) Consume(ctx context.Context, handler Handler) error {
+	go q.reaperLoop(ctx, handler)
 	for {
 		streams, err := q.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    q.group,
@@ -56,24 +58,7 @@ func (q *RedisQueue) Consume(ctx context.Context, handler Handler) error {
 
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
-				raw, ok := msg.Values["data"].(string)
-				if !ok {
-					slog.Error("Consume error", "hostname", q.hostname, "err", "invalid payload data")
-					continue
-				}
-
-				var job Job
-				if err := json.Unmarshal([]byte(raw), &job); err != nil {
-					slog.Error("Consume error", "hostname", q.hostname, "err", err)
-					continue
-				}
-
-				if err := handler.Handle(ctx, &job); err != nil {
-					slog.Error("Consume error", "hostname", q.hostname, "err", err)
-					continue
-				}
-
-				if err := q.client.XAck(ctx, q.stream, q.group, msg.ID).Err(); err != nil {
+				if err := q.handleMessage(ctx, msg, handler); err != nil {
 					slog.Error("Consume error", "hostname", q.hostname, "err", err)
 				}
 			}
@@ -89,9 +74,65 @@ func (q *RedisQueue) Enqueue(ctx context.Context, job *Job) error {
 
 	err = q.client.XAdd(ctx, &redis.XAddArgs{
 		Stream: q.stream,
+		MaxLen: 100000, // keep last 100k messages
+		Approx: true,
 		Values: map[string]any{
 			"data": payload,
 		},
 	}).Err()
+	return err
+}
+
+func (q *RedisQueue) reaperLoop(ctx context.Context, handler Handler) error {
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
+
+	start := "0"
+	for range ticker.C {
+		messages, next, err := q.client.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+			Stream:   q.stream,
+			Group:    q.group,
+			Consumer: q.hostname,
+			MinIdle:  time.Minute,
+			Start:    start,
+			Count:    10,
+		}).Result()
+		if err != nil {
+			slog.Error("Reaper loop error", "hostname", q.hostname, "err", err)
+			break
+		}
+
+		if len(messages) == 0 {
+			start = "0" // reset for next cycle
+			break
+		}
+		start = next
+
+		for _, msg := range messages {
+			if err := q.handleMessage(ctx, msg, handler); err != nil {
+				slog.Error("Reaper loop error", "hostname", q.hostname, "err", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (q *RedisQueue) handleMessage(ctx context.Context, msg redis.XMessage, handler Handler) error {
+	raw, ok := msg.Values["data"].(string)
+	if !ok {
+		return fmt.Errorf("invalid payload data")
+	}
+
+	var job Job
+	if err := json.Unmarshal([]byte(raw), &job); err != nil {
+		return err
+	}
+
+	if err := handler.Handle(ctx, &job); err != nil {
+		return err
+	}
+
+	err := q.client.XAck(ctx, q.stream, q.group, msg.ID).Err()
 	return err
 }
