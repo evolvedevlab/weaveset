@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/evolvedevlab/weaveset/data"
@@ -9,6 +10,32 @@ import (
 
 type Scraper interface {
 	Scrape(context.Context) (*data.List, error)
+}
+
+type Handler struct {
+	store any // TODO: add persistance
+}
+
+func NewHandler(store any) data.Handler {
+	return &Handler{
+		store: store,
+	}
+}
+
+func (h *Handler) Handle(ctx context.Context, job *data.Job) error {
+	sc, err := NewGRScraper(job.URL)
+	if err != nil {
+		return err
+	}
+
+	list, err := sc.Scrape(ctx)
+	if err != nil {
+		return err
+	}
+
+	// TODO: store the guy
+	fmt.Println("list stored: ", list.Name)
+	return nil
 }
 
 func addRequestHeaders(r *http.Request) {

@@ -17,13 +17,16 @@ type grScraper struct {
 }
 
 func NewGRScraper(urlStr string) (Scraper, error) {
-	if !strings.HasPrefix(urlStr, "https://www.goodreads.com/list/show/") {
-		return nil, fmt.Errorf("invalid goodreads list URL")
-	}
-
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
+	}
+
+	if !(u.Hostname() == "goodreads.com" || u.Hostname() == "www.goodreads.com") {
+		return nil, fmt.Errorf("invalid goodreads URL")
+	}
+	if !strings.HasPrefix(u.Path, "/list/show/") {
+		return nil, fmt.Errorf("invalid goodreads list URL")
 	}
 
 	return &grScraper{
@@ -80,6 +83,11 @@ func (sc grScraper) collectRows(s *goquery.Selection) []data.Item {
 
 func (sc grScraper) collectItem(s *goquery.Selection, item *data.Item) {
 	s.Find("td").Each(func(i int, s *goquery.Selection) {
+		d := s.Find(`div[data-resource-type="Book"]`)
+		if id, ok := d.Attr("data-resource-id"); ok {
+			item.ID = strings.TrimSpace(id)
+		}
+
 		title := strings.TrimSpace(s.Find(".bookTitle").Text())
 		if len(title) > 0 {
 			item.Title = title
@@ -118,5 +126,6 @@ func (sc grScraper) collectItem(s *goquery.Selection, item *data.Item) {
 				}
 			}
 		}
+
 	})
 }

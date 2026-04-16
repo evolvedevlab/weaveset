@@ -2,22 +2,52 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"time"
 
+	"github.com/evolvedevlab/weaveset/data"
 	"github.com/evolvedevlab/weaveset/scraper"
+	"github.com/evolvedevlab/weaveset/util"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+)
+
+var (
+	client *redis.Client
+	queue  data.Queuer
 )
 
 func main() {
-	sc, err := scraper.NewGRScraper("https://www.goodreads.com/list/show/399714.Goodreads_Editors_Picks_for_2026?ref=ls_fl_0_seeall")
-	if err != nil {
-		log.Fatal(err)
+	godotenv.Load()
+	var (
+		hostname  = util.GetEnv("HOSTNAME")
+		redisAddr = util.GetEnv("REDIS_ADDR", "127.0.0.1:6379")
+		redisPass = util.GetEnv("REDIS_PASSWORD")
+	)
+	if len(hostname) == 0 {
+		log.Fatal("HOSTNAME variable not provided")
 	}
 
-	result, err := sc.Scrape(context.Background())
-	if err != nil {
-		log.Fatal(err)
+	client = redis.NewClient(&redis.Options{
+		Addr:       redisAddr,
+		Password:   redisPass,
+		DB:         0,
+		ClientName: "worker",
+	})
+
+	ctx := context.Background()
+	if err := client.Ping(ctx).Err(); err != nil {
+		log.Fatal("redis ping error:", err)
 	}
 
-	fmt.Println(result)
+	queue = data.NewRedisQueue(hostname, "jobs", "workers", client)
+	queue.Enqueue(ctx, &data.Job{
+		ID:        uuid.New().String(),
+		URL:       "https://www.goodreads.com/list/show/399714",
+		CreatedAt: time.Now(),
+	})
+
+	log.Println("Consume loop started...")
+	queue.Consume(ctx, scraper.NewHandler(nil))
 }
