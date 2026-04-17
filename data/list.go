@@ -1,8 +1,11 @@
 package data
 
+import "time"
+
 type List struct {
-	Name  string `json:"name"`
-	Items []Item `json:"items"`
+	Name      string    `json:"name"`
+	Items     []Item    `json:"items"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Item struct {

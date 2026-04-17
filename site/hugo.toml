@@ -2,3 +2,40 @@ baseURL = 'http://127.0.0.1:1313/'
 locale = 'en-us'
 title = 'Weaveset'
 theme = 'stack'
+
+[Params]
+mainSections = ['list']
+
+[Params.sidebar]
+avatar = 'https://avatars.githubusercontent.com/u/112468300'
+emoji = '🔥'
+subtitle = 'A simple way to discover and explore curated lists from anywhere.'
+
+[menu]
+[[menu.main]]
+    name = 'Home'
+    url = '/'
+    weight = 10
+    identifier = 'home'
+    [menu.main.params]
+        icon = 'home'
+
+[Params.footer]
+since = 2026
+
+[Params.comments]
+enabled = false
+
+[params.search]
+enable = true
+type = 'local'
+
+[Params.widgets]
+[[Params.widgets.homepage]]
+    type = 'search'
+
+[[Params.widgets.homepage]]
+    type = 'categories'
+
+[[Params.widgets.homepage]]
+    type = 'tag-cloud'

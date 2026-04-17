@@ -13,6 +13,7 @@ import (
 	"github.com/evolvedevlab/weaveset/config"
 	"github.com/evolvedevlab/weaveset/data"
 	"github.com/evolvedevlab/weaveset/scraper"
+	"github.com/evolvedevlab/weaveset/store"
 	"github.com/evolvedevlab/weaveset/util"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -58,12 +59,14 @@ func main() {
 	// 	CreatedAt: time.Now(),
 	// })
 
+	fsStore := store.NewFileSystemStore("site/content/list")
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	log.Println("Consume loop started...")
 	go func() {
-		if err := q.Consume(ctx, scraper.NewHandler(nil)); err != nil {
+		if err := q.Consume(ctx, scraper.NewHandler(fsStore)); err != nil {
 			log.Println("consume error:", err)
 		}
 	}()

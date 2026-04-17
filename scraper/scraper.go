@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/evolvedevlab/weaveset/data"
+	"github.com/evolvedevlab/weaveset/store"
 )
 
 type Scraper interface {
@@ -16,10 +17,10 @@ type Scraper interface {
 // Handler implements the data.Handler interface.
 // This handler is a responsible for scraping and storage.
 type Handler struct {
-	store any // TODO: add persistance
+	store store.Storer // TODO: add persistance
 }
 
-func NewHandler(store any) data.Handler {
+func NewHandler(store store.Storer) data.Handler {
 	return &Handler{
 		store: store,
 	}
@@ -37,8 +38,7 @@ func (h *Handler) Handle(ctx context.Context, job *data.Job) error {
 	}
 
 	// TODO: store the guy
-	fmt.Println("list stored: ", list.Name)
-	return nil
+	return h.store.Save(list)
 }
 
 func detectAndGetScraper(urlStr string) (Scraper, error) {
