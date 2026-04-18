@@ -3,9 +3,11 @@ package data
 import "time"
 
 type List struct {
-	Name      string    `json:"name"`
-	Items     []Item    `json:"items"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Items       []Item    `json:"items"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Item struct {

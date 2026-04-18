@@ -59,7 +59,7 @@ func main() {
 	// 	CreatedAt: time.Now(),
 	// })
 
-	fsStore := store.NewFileSystemStore("site/content/list")
+	fsStore := store.NewFileSystem("site/content/list")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

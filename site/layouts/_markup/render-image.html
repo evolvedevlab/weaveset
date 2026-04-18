@@ -1,0 +1,51 @@
+{{- $image := partial "helper/image" (dict "Resources" .Page.Resources "Image" .Destination "Context" .Page) -}}
+{{- $alt := .PlainText | safeHTML -}}
+{{- $title := .Title | markdownify -}}
+
+{{/* There are some types of images that don't have width and height attributes, such as SVG */}}
+{{- $galleryImage := and $image.Height $image.Width -}}
+
+{{- $attributes := dict -}}
+{{- if $galleryImage -}}
+    {{- $attributes = (dict
+        "data-flex-grow" (div (mul $image.Width 100) $image.Height)
+        "data-flex-basis" (printf "%dpx" (div (mul $image.Width 240) $image.Height))
+    ) -}}
+{{- end -}}
+
+{{- $style := "" -}}
+{{- with .Title -}}
+  {{- $wMatch := findRE `width=['"]?([0-9]+)` . -}}
+  {{- if gt (len $wMatch) 0 -}}
+    {{- $w := index $wMatch 0 -}}
+    {{- $w = replaceRE `.*width=['"]?([0-9]+).*` `$1` $w -}}
+    {{- $style = printf "%smax-width:%spx;" $style $w -}}
+  {{- end -}}
+
+  {{- $hMatch := findRE `height=['"]?([0-9]+)` . -}}
+  {{- if gt (len $hMatch) 0 -}}
+    {{- $h := index $hMatch 0 -}}
+    {{- $h = replaceRE `.*height=['"]?([0-9]+).*` `$1` $h -}}
+    {{- $style = printf "%smax-height:%spx;" $style $h -}}
+  {{- end -}}
+{{- end -}}
+{{- if $style -}}
+  {{- $style = printf "%sheight:auto;display:block;margin:20px auto;" $style -}}
+{{- end -}}
+
+{{ partial "helper/responsive-image" (dict
+    "Resource" $image.Resource
+    "Widths" (cond .Page.Site.Params.ImageProcessing.Content.Enabled .Page.Site.Params.ImageProcessing.Content.Widths nil)
+    "Attributes" (merge $attributes (dict
+        "src" $image.Permalink
+        "width" $image.Width
+        "height" $image.Height
+        "alt" $alt
+        "title" $title
+        "data-title-escaped" ($alt | htmlEscape)
+        "class" (cond $galleryImage "gallery-image" "")
+        "loading" "lazy"
+        "sizes" "(max-width: 767px) calc(100vw - 30px), (max-width: 1023px) 700px, (max-width: 1279px) 950px, 1232px"
+        "style" $style
+    ))
+) }}

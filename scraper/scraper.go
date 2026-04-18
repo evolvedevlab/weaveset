@@ -37,7 +37,6 @@ func (h *Handler) Handle(ctx context.Context, job *data.Job) error {
 		return err
 	}
 
-	// TODO: store the guy
 	return h.store.Save(list)
 }
 
