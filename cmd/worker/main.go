@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -28,6 +31,8 @@ func main() {
 		hostname  = util.GetEnv("HOSTNAME")
 		redisAddr = util.GetEnv("REDIS_ADDR", "127.0.0.1:6379")
 		redisPass = util.GetEnv("REDIS_PASSWORD")
+
+		contentDirPath = util.GetEnv("CONTENT_DIR_PATH", "site/content/list")
 	)
 	if len(hostname) == 0 {
 		log.Fatal("HOSTNAME variable not provided")
@@ -52,19 +57,24 @@ func main() {
 		log.Fatal("redis ping error:", err)
 	}
 
-	q := data.NewRedisQueue(hostname, "jobs", "workers", rc)
+	q := data.NewRedisQueue(hostname, config.Stream, config.Group, rc)
 	// q.Enqueue(ctx, &data.Job{
 	// 	ID:        uuid.New().String(),
 	// 	URL:       "https://www.goodreads.com/list/show/399714",
 	// 	CreatedAt: time.Now(),
 	// })
 
-	fsStore := store.NewFileSystem("site/content/list")
+	fsStore, err := store.NewFileSystem(contentDirPath, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fsStore.Close()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	log.Println("Consume loop started...")
+	go rebuildHugoLoop(contentDirPath)
 	go func() {
 		if err := q.Consume(ctx, scraper.NewHandler(fsStore)); err != nil {
 			log.Println("consume error:", err)
@@ -74,4 +84,30 @@ func main() {
 	<-quitch
 	fmt.Println("shutting down in 3secs...")
 	time.Sleep(time.Second * 3)
+}
+
+func rebuildHugoLoop(dirPath string) {
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
+
+	path := filepath.Join(dirPath, ".changed")
+
+	var lastModAt int64
+	for range ticker.C {
+		info, err := os.Stat(path)
+		if err == nil {
+			mod := info.ModTime().Unix()
+			if mod > lastModAt {
+				log.Println("changes detected → rebuilding")
+
+				cmd := exec.Command("hugo", "-s", "site", "--minify")
+				if err := cmd.Run(); err != nil {
+					slog.Error("rebuild error", "err", err)
+					continue
+				}
+
+				lastModAt = mod
+			}
+		}
+	}
 }

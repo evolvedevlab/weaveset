@@ -1,0 +1,16 @@
+{{- $href := .Get "href" -}}
+
+{{- $linkHost := (urls.Parse $href).Hostname -}}
+{{- $pageHost := (urls.Parse .Page.Permalink).Hostname -}}
+{{- $isLocalhost := or (eq $linkHost "localhost") (eq $linkHost "127.0.0.1") -}}
+{{- $isSameHost := eq $linkHost $pageHost -}}
+
+{{- $isLocal := or $isSameHost $isLocalhost -}}
+
+<a class="link"
+   href="{{ $href }}"
+   {{- if not $isLocal -}}
+     target="_blank" rel="noopener noreferrer"
+   {{- end -}}>
+  {{ .Inner }}
+</a>

@@ -39,3 +39,6 @@ type = 'local'
 
 [[Params.widgets.homepage]]
     type = 'tag-cloud'
+
+[[Params.widgets.page]]
+    type = 'toc'

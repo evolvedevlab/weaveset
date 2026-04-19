@@ -48,6 +48,7 @@ func main() {
 	q := data.NewRedisQueue(hostname, config.Stream, config.Group, rc)
 
 	// routes
+	http.HandleFunc("/", http.FileServer(http.Dir("site/public")).ServeHTTP)
 	http.HandleFunc("/health", handleGetHealth)
 	http.HandleFunc("/job", handlePostJob(q))
 

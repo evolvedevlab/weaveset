@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -29,13 +28,27 @@ type Storer interface {
 type FileSystem struct {
 	DirPath           string
 	FilepathGenerator FilepathGeneratorFunc
+	ChangeFile        *os.File
 }
 
-func NewFileSystem(dirPath string) *FileSystem {
+func NewFileSystem(dirPath string, fn FilepathGeneratorFunc) (*FileSystem, error) {
+	var filepathGeneratorFunc FilepathGeneratorFunc
+	if fn != nil {
+		filepathGeneratorFunc = fn
+	} else {
+		filepathGeneratorFunc = DefaultFilepathGeneratorFunc(dirPath)
+	}
+
+	file, err := os.OpenFile(filepath.Join(dirPath, ".changed"), os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+
 	return &FileSystem{
 		DirPath:           dirPath,
-		FilepathGenerator: DefaultFilepathGeneratorFunc(dirPath),
-	}
+		FilepathGenerator: filepathGeneratorFunc,
+		ChangeFile:        file,
+	}, nil
 }
 
 func (s *FileSystem) Save(list *data.List) error {
@@ -47,60 +60,77 @@ func (s *FileSystem) Save(list *data.List) error {
 	}
 	defer file.Close()
 
+	if err := s.writeContent(file, list); err != nil {
+		return err
+	}
 	if err := os.Rename(file.Name(), filepath); err != nil {
 		return err
 	}
 
-	return s.writeContent(file, list)
+	return s.triggerModify()
+}
+
+func (s *FileSystem) Close() error {
+	return s.ChangeFile.Close()
 }
 
 func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
-	buf := new(bytes.Buffer)
-
 	// frontmatter
-	// open
+	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "title: %q\n", list.Name)
+	fmt.Fprintf(w, "description: %q\n", list.Description)
+	fmt.Fprintf(w, "date: %s\n", list.CreatedAt.Format(time.RFC3339))
 
-	buf.WriteString("---\n")
-	buf.WriteString(fmt.Sprintf("title: %q\n", list.Name))
-	buf.WriteString(fmt.Sprintf("description: %q\n", list.Description))
-	buf.WriteString("date: " + list.CreatedAt.Format(time.RFC3339) + "\n")
 	if len(list.Items) > 0 && len(list.Items[0].Images) > 0 {
-		buf.WriteString("image: " + list.Items[0].Images[0] + "\n")
+		fmt.Fprintf(w, "image: %s\n", list.Items[0].Images[0])
 	}
-	buf.WriteString("tags:\n  - dark\n")
-	buf.WriteString("categories:\n  - books\n")
-	buf.WriteString("draft: false\n")
-	buf.WriteString("toc: true\n")
 
-	// close
-	buf.WriteString("---\n")
+	// fmt.Fprintf(w, "tags:\n  - dark\n")
+	fmt.Fprintf(w, "categories:\n  - books\n")
+	fmt.Fprintf(w, "draft: false\n")
+	fmt.Fprintf(w, "toc: true\n")
+	fmt.Fprintf(w, "---\n\n")
 
 	// body
 	for _, item := range list.Items {
 		if item.Position > 0 {
-			buf.WriteString(fmt.Sprintf("## %d. %s\n\n", item.Position, item.Title))
+			fmt.Fprintf(w, "## %d. %s\n\n", item.Position, item.Title)
 		} else {
-			buf.WriteString(fmt.Sprintf("## %s\n\n", item.Title))
+			fmt.Fprintf(w, "## %s\n\n", item.Title)
 		}
+
 		if len(item.By) > 0 {
-			buf.WriteString("**By:** " + strings.Join(item.By, ", ") + "\n\n")
+			fmt.Fprintf(w, "By %s ㆍ \n", strings.Join(item.By, ", "))
 		}
+
 		if item.AvgRating > 0 {
-			buf.WriteString(fmt.Sprintf("⭐ %.2f (%d ratings)\n\n", item.AvgRating, item.TotalRatings))
+			fmt.Fprintf(w, "⭐ %.2f (%d ratings)\n",
+				item.AvgRating,
+				item.TotalRatings,
+			)
 		}
-		buf.WriteString(fmt.Sprintf(
-			"[View on Goodreads](https://www.goodreads.com/book/show/%s)\n\n",
-			item.ID,
-		))
+		fmt.Fprintf(w, "\n")
+
 		if len(item.Images) > 0 {
-			buf.WriteString(fmt.Sprintf(`![%s](%s "{width='250',height='350'}")`, item.Title, item.Images[0]))
-			buf.WriteString("\n\n")
+			fmt.Fprintf(w,
+				"![%s](%s \"{width='220px'}\")\n\n",
+				item.Title,
+				item.Images[0],
+			)
 		}
+		fmt.Fprintf(w,
+			"[View Source](https://www.goodreads.com/book/show/%s)\n\n",
+			item.ID,
+		)
 
 		// Divider
-		buf.WriteString("---\n\n")
+		fmt.Fprintf(w, "---\n\n")
 	}
 
-	_, err := w.Write(buf.Bytes())
+	return nil
+}
+
+func (s *FileSystem) triggerModify() error {
+	_, err := s.ChangeFile.Write([]byte(time.Now().String()))
 	return err
 }
