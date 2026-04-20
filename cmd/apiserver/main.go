@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -55,27 +55,26 @@ func main() {
 	log.Printf("started at %s\n", listenAddr)
 	go func() {
 		if err := http.ListenAndServe(listenAddr, nil); err != nil {
-			log.Fatal(err)
+			log.Println("http serve error:", err)
 		}
 	}()
 
 	<-quitch
-	fmt.Println("shutting down in 3secs...")
-	time.Sleep(time.Second * 3)
+	log.Println("shutting down...")
 }
 
 func handlePostJob(q data.Queuer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		url := r.URL.Query().Get("url")
-		if len(url) == 0 {
+		u, err := url.Parse(r.URL.Query().Get("url"))
+		if err != nil || u.Scheme == "" || u.Host == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("invalid url"))
 			return
 		}
 
-		err := q.Enqueue(r.Context(), &data.Job{
+		err = q.Enqueue(r.Context(), &data.Job{
 			ID:        uuid.New().String(),
-			URL:       url,
+			URL:       u.String(),
 			CreatedAt: time.Now(),
 		})
 		if err != nil {

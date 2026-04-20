@@ -68,7 +68,7 @@ func (q *RedisQueue) Consume(ctx context.Context, handler Handler) error {
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
 				if err := q.handleMessage(ctx, msg, handler); err != nil {
-					slog.Error("Consume error", "hostname", q.hostname, "err", err)
+					slog.Error("Consume error", "hostname", q.hostname, "msg", msg, "err", err)
 				}
 			}
 		}

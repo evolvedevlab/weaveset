@@ -32,6 +32,9 @@ type = 'local'
 
 [Params.widgets]
 [[Params.widgets.homepage]]
+    type = 'submit'
+
+[[Params.widgets.homepage]]
     type = 'search'
 
 [[Params.widgets.homepage]]

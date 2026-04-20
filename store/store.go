@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evolvedevlab/weaveset/config"
 	"github.com/evolvedevlab/weaveset/data"
 	"github.com/evolvedevlab/weaveset/util"
 )
@@ -26,9 +27,11 @@ type Storer interface {
 }
 
 type FileSystem struct {
-	DirPath           string
-	FilepathGenerator FilepathGeneratorFunc
-	ChangeFile        *os.File
+	// file to trigger modify
+	file *os.File
+
+	filepathGenerator FilepathGeneratorFunc
+	dirPath           string
 }
 
 func NewFileSystem(dirPath string, fn FilepathGeneratorFunc) (*FileSystem, error) {
@@ -39,20 +42,20 @@ func NewFileSystem(dirPath string, fn FilepathGeneratorFunc) (*FileSystem, error
 		filepathGeneratorFunc = DefaultFilepathGeneratorFunc(dirPath)
 	}
 
-	file, err := os.OpenFile(filepath.Join(dirPath, ".changed"), os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filepath.Join(dirPath, config.TriggerModifyFilename), os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
 
 	return &FileSystem{
-		DirPath:           dirPath,
-		FilepathGenerator: filepathGeneratorFunc,
-		ChangeFile:        file,
+		dirPath:           dirPath,
+		filepathGenerator: filepathGeneratorFunc,
+		file:              file,
 	}, nil
 }
 
 func (s *FileSystem) Save(list *data.List) error {
-	filepath := s.FilepathGenerator(list)
+	filepath := s.filepathGenerator(list)
 
 	file, err := os.Create(filepath + ".tmp")
 	if err != nil {
@@ -71,9 +74,11 @@ func (s *FileSystem) Save(list *data.List) error {
 }
 
 func (s *FileSystem) Close() error {
-	return s.ChangeFile.Close()
+	return s.file.Close()
 }
 
+// writeContent will write markdown expected by hugo
+// WARN: it follows the generic markdown syntax except for images
 func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
 	// frontmatter
 	fmt.Fprintf(w, "---\n")
@@ -85,8 +90,8 @@ func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
 		fmt.Fprintf(w, "image: %s\n", list.Items[0].Images[0])
 	}
 
-	// fmt.Fprintf(w, "tags:\n  - dark\n")
-	fmt.Fprintf(w, "categories:\n  - books\n")
+	// fmt.Fprintf(w, "tags:\n  - dark\n") // TODO: do this
+	fmt.Fprintf(w, "categories:\n  - %s\n", list.ListType())
 	fmt.Fprintf(w, "draft: false\n")
 	fmt.Fprintf(w, "toc: true\n")
 	fmt.Fprintf(w, "---\n\n")
@@ -113,7 +118,7 @@ func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
 
 		if len(item.Images) > 0 {
 			fmt.Fprintf(w,
-				"![%s](%s \"{width='220px'}\")\n\n",
+				"![%s](%s \"{width='220px' height='320px'}\")\n\n",
 				item.Title,
 				item.Images[0],
 			)
@@ -130,7 +135,15 @@ func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
 	return nil
 }
 
+// triggerModify will overwrite the file contents
 func (s *FileSystem) triggerModify() error {
-	_, err := s.ChangeFile.Write([]byte(time.Now().String()))
+	if _, err := s.file.Seek(0, 0); err != nil {
+		return err
+	}
+	if err := s.file.Truncate(0); err != nil {
+		return err
+	}
+
+	_, err := s.file.Write([]byte(time.Now().String()))
 	return err
 }

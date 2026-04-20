@@ -1,0 +1,26 @@
+<form id="submit-form" method="POST" class="search-form widget">
+    <p>
+        <label>Add Lists</label>
+        <input name="links" required placeholder="Enter links to scrape..." />
+
+        <button title="{{ T `search.title` }}">
+            {{ partial "helper/icon" "search" }}
+        </button>
+    </p>
+</form>
+
+<script type="text/javascript">
+    document.getElementById("submit-form").addEventListener("submit", async function(e) {
+        e.preventDefault();
+        const input = e.target.links.value;
+
+        const res = await fetch(`/job?url=${input}`, { method: 'POST' })
+        if (res.ok) {
+          e.target.reset();
+          alert('success: please wait...');
+        } else {
+          const s = await res.text()
+          alert('failed: '+s)
+        }
+    });
+</script>

@@ -90,11 +90,11 @@ func rebuildHugoLoop(dirPath string) {
 	ticker := time.NewTicker(time.Second * 30)
 	defer ticker.Stop()
 
-	path := filepath.Join(dirPath, ".changed")
+	filepath := filepath.Join(dirPath, config.TriggerModifyFilename)
 
 	var lastModAt int64
 	for range ticker.C {
-		info, err := os.Stat(path)
+		info, err := os.Stat(filepath)
 		if err == nil {
 			mod := info.ModTime().Unix()
 			if mod > lastModAt {

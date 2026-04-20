@@ -4,10 +4,20 @@ import "time"
 
 type List struct {
 	ID          string    `json:"id"`
+	Source      string    `json:"source"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Items       []Item    `json:"items"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (list List) ListType() string {
+	switch list.Source {
+	case "goodreads":
+		return "Books"
+	}
+
+	return "Unknown"
 }
 
 type Item struct {

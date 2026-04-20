@@ -56,6 +56,7 @@ func (sc *GRScraper) Scrape(ctx context.Context) (*data.List, error) {
 
 	list := data.List{
 		ID:        sc.getListID(),
+		Source:    "goodreads",
 		CreatedAt: time.Now(),
 	}
 	doc.Find(".mainContent .leftContainer").Each(func(i int, s *goquery.Selection) {
@@ -72,7 +73,7 @@ func (sc *GRScraper) Scrape(ctx context.Context) (*data.List, error) {
 	return &list, nil
 }
 
-func (sc GRScraper) collectRows(s *goquery.Selection) []data.Item {
+func (sc *GRScraper) collectRows(s *goquery.Selection) []data.Item {
 	var items []data.Item
 	s.Find("tr").Each(func(i int, s *goquery.Selection) {
 		item := data.Item{
@@ -85,7 +86,7 @@ func (sc GRScraper) collectRows(s *goquery.Selection) []data.Item {
 	return items
 }
 
-func (sc GRScraper) collectItem(s *goquery.Selection, item *data.Item) {
+func (sc *GRScraper) collectItem(s *goquery.Selection, item *data.Item) {
 	s.Find("td").Each(func(i int, s *goquery.Selection) {
 		d := s.Find(`div[data-resource-type="Book"]`)
 		if id, ok := d.Attr("data-resource-id"); ok {
@@ -134,7 +135,7 @@ func (sc GRScraper) collectItem(s *goquery.Selection, item *data.Item) {
 	})
 }
 
-func (sc GRScraper) getListID() string {
+func (sc *GRScraper) getListID() string {
 	// get last path segment
 	segments := strings.Split(strings.Trim(sc.URL.Path, "/"), "/")
 	last := segments[len(segments)-1]
