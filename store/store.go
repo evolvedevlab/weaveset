@@ -57,7 +57,7 @@ func NewFileSystem(dirPath string, fn FilepathGeneratorFunc) (*FileSystem, error
 func (s *FileSystem) Save(list *data.List) error {
 	filepath := s.filepathGenerator(list)
 
-	file, err := os.Create(filepath + ".tmp")
+	file, err := os.Create(fmt.Sprintf("%s.%d.tmp", filepath, time.Now().UnixNano()))
 	if err != nil {
 		return err
 	}
