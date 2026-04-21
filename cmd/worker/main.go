@@ -74,7 +74,6 @@ func main() {
 	defer cancel()
 
 	log.Println("Consume loop started...")
-	go rebuildHugoLoop(contentDirPath)
 	go func() {
 		if err := q.Consume(ctx, scraper.NewHandler(fsStore)); err != nil {
 			log.Println("consume error:", err)
@@ -86,6 +85,8 @@ func main() {
 	time.Sleep(time.Second * 3)
 }
 
+// WARN: shouldn't be used in HA setup
+// kept for reference
 func rebuildHugoLoop(dirPath string) {
 	ticker := time.NewTicker(time.Second * 30)
 	defer ticker.Stop()

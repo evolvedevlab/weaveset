@@ -35,4 +35,5 @@ bin
 test
 site/public
 site/resources
-site/content/list
+site/content/list/*.md
+site/content/list/.changed

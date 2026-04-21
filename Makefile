@@ -11,3 +11,8 @@ worker:
 
 test:
 	@go test -v -count=1 ./...
+
+reset-site:
+	@rm -rf site/content/list
+	@rm -rf site/public
+	@rm -rf site/resources
