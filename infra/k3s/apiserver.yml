@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apiserver
+  namespace: weaveset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apiserver
+  template:
+    metadata:
+      labels:
+        app: apiserver
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: apiserver
+          image: weaveset-apiserver:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_ADDR
+              value: "redis:6379"
+            - name: REDIS_PASSWORD
+              value: "npaulweaveset"
+          volumeMounts:
+            - name: site
+              mountPath: /app/site
+      volumes:
+        - name: site
+          persistentVolumeClaim:
+            claimName: site-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apiserver
+  namespace: weaveset
+spec:
+  type: NodePort
+  selector:
+    app: apiserver
+  ports:
+    - port: 80
+      targetPort: 3000
+      nodePort: 30007

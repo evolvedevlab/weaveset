@@ -37,7 +37,7 @@ RUN mkdir -p /app /app/site
 
 WORKDIR /app
 
-COPY ./script /app/script
+COPY ./script/rebuild.sh /app/script/rebuild.sh
 
 # Default trigger file
 ENV FILEPATH=site/content/list/.changed

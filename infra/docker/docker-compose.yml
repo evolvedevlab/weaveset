@@ -1,0 +1,71 @@
+# Run: REDIS_PASSWORD=somepass docker compose up -d
+# user needs to be set and should have access to site dir
+---
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: wearedis
+    networks:
+      - weaveset
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--requirepass", "${REDIS_PASSWORD}",
+        "--appendonly", "yes",
+        "--maxmemory", "256mb",
+        "--maxmemory-policy", "noeviction"
+      ]
+    volumes:
+      - redis_data:/data
+
+  apiserver:
+    image: weaveset-apiserver:latest
+    container_name: apiserver
+    restart: unless-stopped
+    depends_on:
+      - redis
+    networks:
+      - weaveset
+    ports:
+      - "3000:3000"
+    user: "1000:1000"
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - ./site:/app/site
+
+  worker:
+    image: weaveset-worker:latest
+    container_name: worker
+    restart: unless-stopped
+    networks:
+      - weaveset
+    depends_on:
+      - redis
+    user: "1000:1000"
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - ./site:/app/site
+
+  rebuilder:
+    image: weaveset-rebuild:latest
+    container_name: rebuilder
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - FILEPATH=/app/site/content/list/.changed
+    volumes:
+      - ./site:/app/site
+
+volumes:
+  redis_data:
+
+networks:
+  weaveset:
+    external: true

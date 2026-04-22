@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rebuilder
+  namespace: weaveset
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rebuilder
+  template:
+    metadata:
+      labels:
+        app: rebuilder
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: rebuilder
+          image: weaveset-rebuild:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          env:
+            - name: FILEPATH
+              value: "/app/site/content/list/.changed"
+
+          volumeMounts:
+            - name: site
+              mountPath: /app/site
+
+      volumes:
+        - name: site
+          persistentVolumeClaim:
+            claimName: site-pvc
