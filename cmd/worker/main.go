@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -20,6 +21,7 @@ import (
 	"github.com/evolvedevlab/weaveset/internal/store"
 	"github.com/evolvedevlab/weaveset/util"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -78,6 +80,12 @@ func main() {
 	go func() {
 		if err := q.Consume(ctx, scraper.NewHandler(fsStore)); err != nil {
 			log.Println("consume error:", err)
+		}
+	}()
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(":2122", nil); err != nil {
+			log.Fatal("metrics serve error:", err)
 		}
 	}()
 

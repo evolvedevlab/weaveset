@@ -33,7 +33,7 @@ func (h *Handler) Handle(ctx context.Context, job *data.Job) error {
 	if err != nil {
 		return err
 	}
-	sc = NewLoggingScraper(sc)
+	sc = NewInstrumentedScraper(sc)
 
 	list, err := sc.Scrape(ctx, job.URL)
 	if err != nil {
@@ -43,27 +43,35 @@ func (h *Handler) Handle(ctx context.Context, job *data.Job) error {
 	return h.store.Save(list)
 }
 
-type loggingScraper struct {
+type instrumentedScraper struct {
 	next Scraper
 }
 
-func NewLoggingScraper(sc Scraper) Scraper {
-	return &loggingScraper{next: sc}
+func NewInstrumentedScraper(sc Scraper) Scraper {
+	return &instrumentedScraper{next: sc}
 }
 
-func (s *loggingScraper) Scrape(ctx context.Context, url string) (*data.List, error) {
+func (s *instrumentedScraper) Scrape(ctx context.Context, url string) (*data.List, error) {
 	start := time.Now()
 	slog.Info("scrape_start", "url", url, "start", start)
 
 	list, err := s.next.Scrape(ctx, url)
 
+	// metrics
 	took := time.Since(start)
+	scrapeDuration.Observe(took.Seconds())
 	if err != nil {
+		// metrics & error logging
+		scrapeTotal.WithLabelValues("fail").Inc()
 		slog.Error("scrape_failed", "url", url, "took_ms", took.Milliseconds(), "err", err)
+
 		return nil, err
 	}
 
+	// metrics & info logging
+	scrapeTotal.WithLabelValues("success").Inc()
 	slog.Info("scrape_success", "url", url, "took_ms", took.Milliseconds())
+
 	return list, nil
 }
 
