@@ -31,10 +31,11 @@ func main() {
 
 	godotenv.Load()
 	var (
-		isProd    = util.GetEnv("ENVIRONMENT") == "production"
-		hostname  = util.GetEnv("HOSTNAME")
-		redisAddr = util.GetEnv("REDIS_ADDR", "127.0.0.1:6379")
-		redisPass = util.GetEnv("REDIS_PASSWORD")
+		isProd            = util.GetEnv("ENVIRONMENT") == "production"
+		metricsListenAddr = util.GetEnv("METRICS_LISTEN_ADDR", ":2122")
+		hostname          = util.GetEnv("HOSTNAME")
+		redisAddr         = util.GetEnv("REDIS_ADDR", "127.0.0.1:6379")
+		redisPass         = util.GetEnv("REDIS_PASSWORD")
 
 		contentDirPath = util.GetEnv("CONTENT_DIR_PATH", "site/content/list")
 	)
@@ -84,8 +85,9 @@ func main() {
 	}()
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		if err := http.ListenAndServe(":2122", nil); err != nil {
-			log.Fatal("metrics serve error:", err)
+		if err := http.ListenAndServe(metricsListenAddr, nil); err != nil {
+			close(quitch)
+			log.Println("metrics serve error:", err)
 		}
 	}()
 

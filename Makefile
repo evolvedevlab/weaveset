@@ -12,6 +12,11 @@ worker:
 test:
 	@go test -v -count=1 ./...
 
+docker-build:
+	@docker build -t weaveset-apiserver -f infra/docker/apiserver.Dockerfile .
+	@docker build -t weaveset-worker -f infra/docker/worker.Dockerfile .
+	@docker build -t weaveset-rebuild -f infra/docker/rebuild.Dockerfile .
+
 reset-site:
 	@rm -rf site/content/list
 	@rm -rf site/public

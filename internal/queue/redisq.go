@@ -138,31 +138,54 @@ func (q *RedisQueue) handleMessage(ctx context.Context, msg redis.XMessage, hand
 		return err
 	}
 
-	// ACK if too many retries
 	if retries >= config.MaxJobRetryLimit {
-		if err := q.client.XAck(ctx, q.stream, q.group, msg.ID).Err(); err != nil {
-			return err
-		}
-		return errExceededRetryLimit
+		return q.dropMessage(ctx, msg.ID)
 	}
 
-	err = handler.Handle(ctx, job)
+	return q.processMessage(ctx, msg, job, handler)
+}
+
+func (q *RedisQueue) processMessage(ctx context.Context, msg redis.XMessage, job *data.Job, handler data.Handler) error {
+	start := time.Now()
+	// handle job
+	err := handler.Handle(ctx, job)
+	// metrics
+	jobDuration.Observe(time.Since(start).Seconds())
+
 	if err != nil {
+		// metrics
+		jobsProcessedTotal.WithLabelValues("fail").Inc()
+
 		// increment retry count
 		if err := q.incrRetryCount(ctx, job.ID); err != nil {
 			return err
 		}
+		// metrics
+		jobRetriesTotal.Inc()
+
 		return err // leave as is
 	}
 
-	err = q.client.XAck(ctx, q.stream, q.group, msg.ID).Err()
-	if err != nil {
+	// metrics
+	jobsProcessedTotal.WithLabelValues("success").Inc()
+
+	if err := q.client.XAck(ctx, q.stream, q.group, msg.ID).Err(); err != nil {
 		return err
 	}
 
 	// delete retries count
 	err = q.client.Del(ctx, "retries:"+msg.ID).Err()
 	return err
+}
+
+func (q *RedisQueue) dropMessage(ctx context.Context, msgID string) error {
+	// metrics
+	jobsDroppedTotal.Inc()
+
+	if err := q.client.XAck(ctx, q.stream, q.group, msgID).Err(); err != nil {
+		return err
+	}
+	return errExceededRetryLimit
 }
 
 func (q *RedisQueue) incrRetryCount(ctx context.Context, jobID string) error {
