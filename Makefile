@@ -9,6 +9,10 @@ worker:
 	@go build -o bin/$(APP_NAME)-worker ./cmd/worker
 	@bin/$(APP_NAME)-worker
 
+simple:
+	@go build -o bin/$(APP_NAME)-simple ./cmd/simple
+	@bin/$(APP_NAME)-simple
+
 test:
 	@go test -v -count=1 ./...
 

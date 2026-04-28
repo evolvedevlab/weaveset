@@ -15,3 +15,7 @@ type Queuer interface {
 	Enqueue(context.Context, *data.Job) error
 	Consume(context.Context, data.Handler) error
 }
+
+func getRetryKey(jobID string) string {
+	return "retries:" + jobID
+}
