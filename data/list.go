@@ -3,12 +3,13 @@ package data
 import "time"
 
 type List struct {
-	ID          string    `json:"id"`
-	Source      string    `json:"source"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Items       []Item    `json:"items"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string         `json:"id"`
+	Source      string         `json:"source"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Items       []Item         `json:"items"`
+	CreatedAt   time.Time      `json:"created_at"`
+	Metadata    map[string]any `json:"metadata"`
 }
 
 func (list List) ListType() string {
@@ -18,6 +19,14 @@ func (list List) ListType() string {
 	}
 
 	return "Unknown"
+}
+
+func (list List) Titles() []string {
+	titles := make([]string, len(list.Items))
+	for i, item := range list.Items {
+		titles[i] = item.Title
+	}
+	return titles
 }
 
 type Item struct {

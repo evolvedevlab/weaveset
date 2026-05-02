@@ -34,14 +34,14 @@ type noopRWSeekTruncate struct {
 	*bytes.Buffer
 }
 
-func (noop *noopRWSeekTruncate) Truncate(int64) error {
+func (*noopRWSeekTruncate) Truncate(int64) error {
 	return nil
 }
 
-func (noop *noopRWSeekTruncate) Seek(int64, int) (int64, error) {
+func (*noopRWSeekTruncate) Seek(int64, int) (int64, error) {
 	return 0, nil
 }
 
-func (noop *noopRWSeekTruncate) Close() error {
+func (*noopRWSeekTruncate) Close() error {
 	return nil
 }

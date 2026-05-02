@@ -82,7 +82,17 @@ func (s *FileSystem) writeContent(w io.Writer, list *data.List) error {
 		fmt.Fprintf(w, "image: %s\n", list.Items[0].Images[0])
 	}
 
-	// fmt.Fprintf(w, "tags:\n  - dark\n") // TODO: do this
+	// tags
+	if raw, ok := list.Metadata[config.TagsKey]; ok {
+		if tags, ok := raw.([]string); ok {
+			fmt.Fprintf(w, "tags:\n")
+			for _, tag := range tags {
+				fmt.Fprintf(w, "  - %s\n", tag)
+			}
+			fmt.Fprintf(w, "\n")
+		}
+	}
+
 	fmt.Fprintf(w, "categories:\n  - %s\n", list.ListType())
 	fmt.Fprintf(w, "draft: false\n")
 	fmt.Fprintf(w, "toc: true\n")

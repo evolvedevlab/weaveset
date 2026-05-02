@@ -1,13 +1,12 @@
 package config
 
 const (
-	TriggerModifyFilename = ".changed"
-)
-
-// redis stream
-const (
+	// redis stream
 	Stream = "jobs"
 	Group  = "workers"
 
-	MaxJobRetryLimit = 10
+	TagsKey = "tags"
+
+	TriggerModifyFilename = ".changed"
+	MaxJobRetryLimit      = 10
 )

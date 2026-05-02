@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/evolvedevlab/weavedeck/config"
 	"github.com/evolvedevlab/weavedeck/data"
 )
 
@@ -72,6 +73,10 @@ func (sc *GRScraper) Scrape(ctx context.Context, URL string) (*data.List, error)
 			list.Items = sc.collectRows(s)
 		})
 	})
+
+	list.Metadata = map[string]any{
+		config.TagsKey: data.GenerateTags(list.Name, config.Stopwords, config.Tags),
+	}
 
 	return &list, nil
 }
