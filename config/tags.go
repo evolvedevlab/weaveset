@@ -1,12 +1,18 @@
 package config
 
 import (
-	"encoding/json"
+	"bufio"
+	"embed"
+	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/evolvedevlab/weavedeck/util"
 )
+
+//go:embed *
+var embedFS embed.FS
 
 var (
 	Tags      = make(map[string]struct{})
@@ -14,23 +20,42 @@ var (
 )
 
 func init() {
-	var data struct {
-		Tags      []string `json:"tags"`
-		Stopwords []string `json:"stopwords"`
-	}
+	if !strings.HasSuffix(os.Args[0], ".test") {
+		sw, err := embedFS.Open("stopwords.txt")
+		if err != nil {
+			log.Fatal(err)
+		}
+		t, err := embedFS.Open("tags.txt")
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	file, err := os.Open("config/data.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := json.NewDecoder(file).Decode(&data); err != nil {
-		log.Fatal(err)
-	}
+		rd := bufio.NewReader(sw)
+		rd.ReadString('\n')
+		for {
+			s, err := rd.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				log.Fatal(err)
+			}
 
-	for _, t := range data.Tags {
-		Tags[util.Normalize(t)] = struct{}{}
-	}
-	for _, s := range data.Stopwords {
-		Stopwords[s] = struct{}{}
+			Stopwords[strings.TrimSpace(s)] = struct{}{}
+		}
+
+		rd = bufio.NewReader(t)
+		rd.ReadString('\n')
+		for {
+			s, err := rd.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				log.Fatal(err)
+			}
+
+			Tags[util.Normalize(s)] = struct{}{}
+		}
 	}
 }

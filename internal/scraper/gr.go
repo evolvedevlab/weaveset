@@ -74,8 +74,9 @@ func (sc *GRScraper) Scrape(ctx context.Context, URL string) (*data.List, error)
 		})
 	})
 
+	tags, _ := data.GenerateTags(list.Name, config.Stopwords, config.Tags)
 	list.Metadata = map[string]any{
-		config.TagsKey: data.GenerateTags(list.Name, config.Stopwords, config.Tags),
+		config.TagsKey: tags,
 	}
 
 	return &list, nil
